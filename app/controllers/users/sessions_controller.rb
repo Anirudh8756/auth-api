@@ -16,31 +16,35 @@ private
   end
 
   def respond_to_on_destroy
-    # Ensure the Authorization header is correctly formatted
-    auth_header = request.headers['Authorization']
-    if auth_header.present? && auth_header.start_with?('Bearer ')
-      # Extract the token
-      token = auth_header.split(' ')[1]
-
-      begin
-        # Decode the JWT token
-        jwt_payload = JWT.decode(token, Rails.application.credentials.fetch(:secret_key_base)).first
-        current_user = User.find_by(id: jwt_payload['sub'])
-
-        # Check if user exists
-        if current_user
-          render json: { status: 200, message: "Signed out successfully" }, status: :ok
-        else
-          render json: { status: 401, message: "User not found" }, status: :unauthorized
-        end
-
-      rescue JWT::DecodeError => e
-        render json: { status: 401, message: "Invalid token: #{e.message}" }, status: :unauthorized
+    begin
+      token = request.headers['Authorization']&.split(' ')&.last
+      if token.nil?
+        return render json: { status: 401, message: "Authorization token missing" }, status: :unauthorized
       end
 
-    else
-      render json: { status: 401, message: "Authorization header not provided or incorrect format" }, status: :unauthorized
+      # Decode the JWT token
+      jwt_payload = JWT.decode(token, Rails.application.credentials.fetch(:secret_key_base)).first
+      current_user = User.find_by(id: jwt_payload['sub'])
+
+      if current_user
+        render json: {
+          status: 200,
+          message: "Signed out successfully"
+        }, status: :ok
+      else
+        render json: {
+          status: 401,
+          message: "User has no active session"
+        }, status: :unauthorized
+      end
+
+    rescue JWT::DecodeError
+      render json: { status: 401, message: "Invalid token" }, status: :unauthorized
+    rescue => e
+      Rails.logger.error("Unexpected error in SessionsController#respond_to_on_destroy: #{e.message}")
+      render json: { status: 500, message: "Internal server error" }, status: :internal_server_error
     end
   end
+
 
 end
