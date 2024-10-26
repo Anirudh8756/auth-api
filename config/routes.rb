@@ -5,5 +5,12 @@ Rails.application.routes.draw do
   }do
 
   end
-get '/member_details' => 'members#index'
+  get '/member_details' => 'members#index'
+
+  # resources :companies
+  namespace :api do
+    namespace :v1 do
+      resources :companies
+    end
+  end
 end
