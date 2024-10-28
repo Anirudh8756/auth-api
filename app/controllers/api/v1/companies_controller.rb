@@ -1,5 +1,7 @@
 class Api::V1::CompaniesController < ApiController
-before_action :set_company , only: %i[show update destroy]
+  load_and_authorize_resource
+  before_action :set_company , only: %i[show update destroy]
+
   def index
     @companies = Company.all
     if @companies.present?
