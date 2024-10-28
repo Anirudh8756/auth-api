@@ -3,19 +3,26 @@ class Api::V1::CompaniesController < ApiController
   before_action :set_company , only: %i[show update destroy]
 
   def index
-    @companies = Company.all
-    if @companies.present?
-        render json: @companies , status: :ok
+    if Company.exists?
+      if current_user.super_admin?
+        @companies = Company.all
+      elsif current_user.admin?
+        @companies = Company.where(user_id: current_user.id)
+      else
+      @companies = []
+      end
+      render json: @companies, status: :ok
     else
-        render json: {
-          message: "No Companies Found"
-        }
+      render json: {
+        "message": "No Company Found" ,
+
+      }, status: :not_found
     end
   end
 
   def create
-    # @company = Company.new(company_params)
-    @company = current_user.companies.new(company_params)
+    @company = Company.new(company_params)
+    # @company = current_user.companies.new(company_params)
     if @company.save
       render json: @company, status: :ok
     else
@@ -25,11 +32,12 @@ class Api::V1::CompaniesController < ApiController
     end
   end
   def show
-      render json: {
-        "company": @company,
-        "user": current_user
-      }, status: :ok
-  end
+        render json: {
+          "company": @company,
+          "Email": @company.user.email,
+          "Role": @company.user.role
+        }, status: :ok
+    end
 
   def update
     if @company.update(company_params)
@@ -59,7 +67,8 @@ class Api::V1::CompaniesController < ApiController
   end
 private
   def set_company
-      @company = current_user.companies.find(params[:id])
+    @company = Company.find(params[:id])
+      # @company = current_user.companies.find(params[:id])
     rescue ActiveRecord::RecordNotFound => error
       render json: error.message , status: :unauthorized
   end
